@@ -1,32 +1,33 @@
+import os
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import openai
-import os
-
-openai.api_key = os.environ.get("OPENAI_API_KEY")
+from openai import OpenAI
 
 app = Flask(__name__)
 CORS(app)
 
+client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+
 @app.route("/generate", methods=["POST"])
 def generate():
-    data = request.get_json()
-    user_message = data.get("message", "")
-
     try:
-        response = openai.ChatCompletion.create(
+        data = request.get_json()
+        user_message = data.get("message")
+
+        if not user_message:
+            return jsonify({"error": "Messaggio mancante"}), 400
+
+        completion = client.chat.completions.create(
             model="gpt-4",
             messages=[
-                {"role": "system", "content": "Sei un assistente esperto di viaggi. Rispondi in modo conciso ma dettagliato."},
+                {"role": "system", "content": "Sei un assistente esperto in viaggi, che propone destinazioni dettagliate, adatte al profilo del viaggiatore."},
                 {"role": "user", "content": user_message}
-            ],
-            temperature=0.7
+            ]
         )
 
-        return jsonify({"response": response["choices"][0]["message"]["content"]})
+        return jsonify({"response": completion.choices[0].message.content})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))
-    app.run(host="0.0.0.0", port=port)
+    app.run(host="0.0.0.0", port=10000)
